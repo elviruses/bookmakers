@@ -11,20 +11,23 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
-@Component
+
 public class Parser {
     public static void main(String[] args) {
-        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(
-                "applicationContext.xml");
-
-        Zenit zenitGen = context.getBean("zenitBean", Zenit.class);
-        Zenit zenitSecond = context.getBean("zenitBean", Zenit.class);
-        Result result = context.getBean("resultBean", Result.class);
-
-        zenitGen.setType("general");
-        zenitSecond.setType("second");
-        zenitGen.start();
-        zenitSecond.start();
-        result.start();
+        int hour = 4;
+        while (true) {
+            if (DB.getInstance().getReadyMatch() != 0) {
+                (new Zenit()).start();
+            } else if (hour == 4) {
+                (new Zenit()).start();
+                hour = 0;
+            }
+            try {
+                Thread.sleep(1000 * 900);
+                hour++;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

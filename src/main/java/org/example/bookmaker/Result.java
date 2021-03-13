@@ -2,57 +2,58 @@ package org.example.bookmaker;
 
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
-import org.springframework.stereotype.Component;
-
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-@Component("resultBean")
-public class Result extends Thread {
+public class Result {
     private JSONObject json;
     private int reload;
-    private String nowDate;
-    private String url;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-M-d");
+    private final String URL_JSON_RESULT = "https://zenit.win/nws/v1/matchesresults?timezone_id=3&is_live=0&main_score=0&date_from=%s&date_to=%s&site_type=1&language_id=1049&sports%%5B0%%5D=1&include_other=0";
 
-    private final String URL_JSON_RESULT = "https://zenit.win/ajax/results/get?timezone=3&type=0&main_score=0&date%%5Bfrom%%5D=%s&date%%5Bto%%5D=%s&sport%%5B0%%5D=1";
-    private final int SLEEP_MIN = 300;
+    private LocalDateTime dateTimeMatch;
+    private String teamOne;
+    private String teamTwo;
+    private int tone1 = -99;
+    private int tone2 = -99;
+    private int ttwo1 = -99;
+    private int ttwo2 = -99;
+    private String canc = "-";
+    private Map<String, Result> mapResult = new HashMap<>();
 
-    private int tone1;
-    private int tone2;
-    private int ttwo1;
-    private int ttwo2;
-    private String canc;
-    private Map<Integer, Result> mapResult;
+    public Result(Result result) {
+        this.tone1 = result.getTone1();
+        this.tone2 = result.getTone2();
+        this.ttwo1 = result.getTtwo1();
+        this.ttwo2 = result.getTtwo2();
+        this.canc = result.getCanc();
+    }
 
-    @Override
-    public void run() {
+    public Result() {
+        loadResult();
+    }
+
+    public void loadResult() {
         try {
-            while (true) {
-                nowDate = LocalDate.now().format(formatter);
-                url = String.format(URL_JSON_RESULT, nowDate, nowDate);
-                System.out.println(url);
-                do {
-                    try {
-                        json = getJson(url);
-                        reload = 0;
-                    } catch (IOException e) {
-                        reload++;
-                        /*NIO*/
-                    }
-                } while (json == null && reload < 5);
-                if (json.has("code") && json.get("code").equals("ERROR")) {
-
-                } else {
-                    loadMapResult();
-                    save();
+            String nowDate = LocalDate.now().format(formatter);
+            String url = String.format(URL_JSON_RESULT, nowDate, nowDate);
+            System.out.println(url);
+            do {
+                try {
+                    json = getJson(url);
+                    reload = 0;
+                } catch (IOException e) {
+                    reload++;
                 }
-                Thread.sleep(SLEEP_MIN * 1000);
+            } while (json == null && reload < 5);
+            if (json.has("code") && json.get("code").equals("ERROR")) {
+
+            } else {
+                loadMapResult();
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -64,38 +65,44 @@ public class Result extends Thread {
     }
 
     private void loadMapResult() {
-        mapResult = new HashMap<>();
         for (String key: json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.GAMES.get()).keySet()) {
             String[] result = replacer(json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.GAMES.get()).getJSONObject(key).get(Keys.SCORE.get()).toString());
-            System.out.println(Arrays.toString(result));
-            if (result.length == 0)
-                continue;
-            if (result.length == 2) {
+            if (result.length == 0) {
+                tone1 = -99;
+                tone2 = -99;
+                ttwo1 = -99;
+                ttwo2 = -99;
+                canc = (json.getJSONObject(Keys.RESULT.get()).has(Keys.CANCEL.get()) &&
+                        json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.CANCEL.get()).has(key))
+                        ? json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.CANCEL.get()).get(key).toString()
+                        : "-";
+            } else if (result.length == 2) {
                 tone1 = -99;
                 tone2 = -99;
                 ttwo1 = Integer.parseInt(result[0]);
                 ttwo2 = Integer.parseInt(result[1]);
-                canc = null;
+                canc = (json.getJSONObject(Keys.RESULT.get()).has(Keys.CANCEL.get()) &&
+                        json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.CANCEL.get()).has(key))
+                        ? json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.CANCEL.get()).get(key).toString()
+                        : "-";
             } else {
                 tone1 = Integer.parseInt(result[2]);
                 tone2 = Integer.parseInt(result[3]);
                 ttwo1 = Integer.parseInt(result[0]);
                 ttwo2 = Integer.parseInt(result[1]);
-                canc = null;
+                canc = (json.getJSONObject(Keys.RESULT.get()).has(Keys.CANCEL.get()) &&
+                        json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.CANCEL.get()).has(key))
+                        ? json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.CANCEL.get()).get(key).toString()
+                        : "-";
             }
-            mapResult.put(Integer.parseInt(key), this);
-        }
 
-        if (json.getJSONObject(Keys.RESULT.get()).has(Keys.CANCEL.get())) {
-            for (String key: json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.CANCEL.get()).keySet()) {
-                String textCancel = json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.CANCEL.get()).get(key).toString();
-                tone1 = -99;
-                tone2 = -99;
-                ttwo1 = -99;
-                ttwo2 = -99;
-                canc = textCancel;
-                mapResult.put(Integer.parseInt(key), this);
-            }
+            String dateMatch = LocalDateTime.now().getYear() + "/" + json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.GAMES.get()).getJSONObject(key).get("date").toString();
+            dateTimeMatch = LocalDateTime.parse(dateMatch, DateTimeFormatter.ofPattern(Keys.DATE_PATTERN.get()));
+            teamOne = json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.GAMES.get()).getJSONObject(key).get("team_1_name").toString();
+            teamTwo = json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.GAMES.get()).getJSONObject(key).get("team_2_name").toString();
+            mapResult.put(dateTimeMatch + teamOne + teamTwo, new Result(this));
+
+            System.out.println("Key: " + dateTimeMatch + teamOne + teamTwo + "Value: " + this.tone1 + " " + this.tone2 + " " + this.ttwo1 + " " + this.ttwo2);
         }
     }
 
@@ -106,8 +113,8 @@ public class Result extends Thread {
                      .split(" ");
     }
 
-    private void save() {
-        DB.getInstance().saveResult(mapResult);
+    public Map<String, Result> getMapResult() {
+        return mapResult;
     }
 
     public int getTone1() {
