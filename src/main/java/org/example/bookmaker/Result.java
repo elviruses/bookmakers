@@ -2,6 +2,9 @@ package org.example.bookmaker;
 
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -10,6 +13,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Result {
+    private static final Logger logger = LoggerFactory.getLogger(Result.class);
+
     private JSONObject json;
     private int reload;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-M-d");
@@ -41,12 +46,14 @@ public class Result {
         try {
             String nowDate = LocalDate.now().format(formatter);
             String url = String.format(URL_JSON_RESULT, nowDate, nowDate);
-            System.out.println(url);
+            logger.info("URL получения результатов: {}", url);
             do {
                 try {
                     json = getJson(url);
                     reload = 0;
                 } catch (IOException e) {
+                    logger.info("Ошибка получения JSON результатов, попытка: {}", reload);
+                    logger.error(e.getMessage(), e);
                     reload++;
                 }
             } while (json == null && reload < 5);
@@ -56,7 +63,7 @@ public class Result {
                 loadMapResult();
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e.getMessage(), e);
         }
     }
 
@@ -102,7 +109,8 @@ public class Result {
             teamTwo = json.getJSONObject(Keys.RESULT.get()).getJSONObject(Keys.GAMES.get()).getJSONObject(key).get("team_2_name").toString();
             mapResult.put(dateTimeMatch + teamOne + teamTwo, new Result(this));
 
-            System.out.println("Key: " + dateTimeMatch + teamOne + teamTwo + "Value: " + this.tone1 + " " + this.tone2 + " " + this.ttwo1 + " " + this.ttwo2);
+            logger.info("Key: {}{}{} | Value: {} {} {} {} {}", dateTimeMatch, teamOne, teamTwo
+            ,this.tone1, this.tone2, this.ttwo1, this.ttwo2, this.canc);
         }
     }
 

@@ -3,8 +3,8 @@ package org.example.bookmaker;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -16,6 +16,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Zenit extends Thread {
+    private static final Logger logger = LoggerFactory.getLogger(Zenit.class);
+
     private JSONObject json;
     private int reload;
     private int countMatch;
@@ -46,12 +48,13 @@ public class Zenit extends Thread {
             for (int i=0; i <= countMatch; i = i + STEP) {
                 int length = Math.min((countMatch - i), STEP);
                 String url = String.format(URL_JSON, i, length);
-                System.out.println(url);
+                logger.info("Вызываемый URL: {} ", url);
                 do {
                     try {
                         json = getJson(url);
                         reload = 0;
                     } catch (IOException e) {
+                        logger.error(e.getMessage(), e);
                         reload++;
                     }
                 } while (json == null && reload < 5);
@@ -62,7 +65,7 @@ public class Zenit extends Thread {
             loadGameAndResult();
             save();
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e.getMessage(), e);
         }
     }
 
@@ -101,11 +104,7 @@ public class Zenit extends Thread {
                 game.setTtwo2(result.get(keyInMapResult).getTtwo2());
                 game.setCanc(result.get(keyInMapResult).getCanc());
                 gameZenitList.add(game);
-                try (BufferedWriter writer = new BufferedWriter(new FileWriter("log.txt", true))) {
-                    writer.write("Добавление в резы: " + game + '\n');
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                logger.info("Добавление результатов: {}", game);
             }
         }
     }
@@ -120,10 +119,6 @@ public class Zenit extends Thread {
 
     public ArrayList<GameZenit> getGameZenitList() {
         return gameZenitList;
-    }
-
-    public Map<String, Result> getResult() {
-        return result;
     }
 
     private void save() {

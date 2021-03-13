@@ -1,5 +1,8 @@
 package org.example.bookmaker;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -12,6 +15,8 @@ import java.util.Iterator;
 import java.util.Map;
 
 public class DB {
+
+    private static final Logger logger = LoggerFactory.getLogger(DB.class);
 
     private static final String URL = "jdbc:postgresql://localhost:5432/first_db";
     private static final String USERNAME = "postgres";
@@ -27,8 +32,8 @@ public class DB {
         try {
             Class.forName("org.postgresql.Driver");
             connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
-        } catch (ClassNotFoundException | SQLException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
         }
     }
 
@@ -50,8 +55,9 @@ public class DB {
                 result = resultSet.getInt("c");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage(), e);
         }
+        logger.info("Количество приближающихся матчей: {}", result);
         return result;
     }
 
@@ -89,7 +95,7 @@ public class DB {
                 gameZenitInDB.add(game);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage(), e);
         }
         return gameZenitInDB;
     }
@@ -110,14 +116,10 @@ public class DB {
         }
 
         if (resultArr.size() > 0) {
-            System.out.println("Добавлено новых строк: " + resultArr.size());
+            logger.info("Добавится новых строк: {}", resultArr.size());
             try (PreparedStatement pstmt = connection.prepareStatement("INSERT INTO games_zenit VALUES (DEFAULT, localtimestamp, to_timestamp(?, ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 for (GameZenit game: resultArr) {
-                    try (BufferedWriter writer = new BufferedWriter(new FileWriter("log.txt", true))) {
-                        writer.write("В БД: " + game + '\n');
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    logger.info("Добавлена строка в БД: {}", game);
                     pstmt.setString(1, game.getDateTimeMatch().format(DateTimeFormatter.ofPattern(PATTERN_SAVE_DATE)));
                     pstmt.setString(2, PATTERN_SAVE_DATE_DB);
                     pstmt.setInt(3, game.getId_match());
@@ -147,7 +149,7 @@ public class DB {
                     pstmt.executeUpdate();
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                logger.error(e.getMessage(), e);
             }
         }
     }
