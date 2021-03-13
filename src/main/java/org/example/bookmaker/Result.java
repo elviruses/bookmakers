@@ -39,7 +39,6 @@ public class Result {
     }
 
     public Result() {
-        loadResult();
     }
 
     public void loadResult() {
@@ -67,7 +66,7 @@ public class Result {
         }
     }
 
-    private JSONObject getJson(String url) throws IOException {
+    public JSONObject getJson(String url) throws IOException {
         return new JSONObject(Jsoup.connect(url).ignoreContentType(true).execute().body());
     }
 

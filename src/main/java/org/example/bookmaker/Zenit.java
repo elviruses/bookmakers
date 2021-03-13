@@ -31,7 +31,7 @@ public class Zenit extends Thread {
     private Map<String, Result> result = new HashMap<>();
     private ArrayList<GameZenit> gameZenitList = new ArrayList<>();
 
-    private JSONObject getJson(String url) throws IOException {
+    public JSONObject getJson(String url) throws IOException {
         return new JSONObject(Jsoup.connect(url).ignoreContentType(true).execute().body());
     }
 
@@ -82,7 +82,9 @@ public class Zenit extends Thread {
     }
 
     private void loadResult() {
-        result = new HashMap<>((new Result()).getMapResult());
+        Result res = new Result();
+        res.loadResult();
+        result = new HashMap<>(res.getMapResult());
     }
 
     private void loadGame() {
