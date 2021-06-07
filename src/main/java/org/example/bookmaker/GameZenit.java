@@ -2,13 +2,36 @@ package org.example.bookmaker;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
+@Component
+@Scope("prototype")
 public class GameZenit {
     private Zenit zenit;
+    private JSONObject json;
+
+    @Value("${result.date}")
+    private String DATE;
+    @Value("${result.date_pattern}")
+    private String DATE_PATTERN;
+    @Value("${gamezenit.team_one}")
+    private String TEAM_ONE;
+    @Value("${gamezenit.team_two}")
+    private String TEAM_TWO;
+    @Value("${gamezenit.match_id}")
+    private String MATCH_ID;
+    @Value("${gamezenit.league_id}")
+    private String LEAGUE_ID;
+    @Value("${gamezenit.coeff_array}")
+    private String COEFF_ARRAY;
+    @Value("${gamezenit.coeff_value}")
+    private String COEFF_VALUE;
 
     private LocalDateTime dateTimeMatch;
     private String team_one;
@@ -35,9 +58,14 @@ public class GameZenit {
     private int ttwo2 = -99;
     private String canc = "-";
 
-    public GameZenit(JSONObject json, Zenit zenit) {
+    public GameZenit() {
+    }
+
+    public GameZenit getObject(JSONObject json, Zenit zenit) {
         this.zenit = zenit;
+        this.json = json;
         init(json);
+        return this;
     }
 
     public GameZenit(LocalDateTime dateTimeMatch, String team_one, String team_two, int id_match,
@@ -71,32 +99,32 @@ public class GameZenit {
     }
 
     private void init(JSONObject json) {
-        String dateMatch = LocalDateTime.now().getYear() + "/" + json.get(Keys.DATE.get()).toString();
-        dateTimeMatch = LocalDateTime.parse(dateMatch, DateTimeFormatter.ofPattern(Keys.DATE_PATTERN.get()));
+        String dateMatch = LocalDateTime.now().getYear() + "/" + json.get(DATE).toString();
+        dateTimeMatch = LocalDateTime.parse(dateMatch, DateTimeFormatter.ofPattern(DATE_PATTERN));
 
-        team_one = zenit.getMapTeams().get(Integer.parseInt(json.get(Keys.TEAM_ONE.get()).toString()));
-        team_two = zenit.getMapTeams().get(Integer.parseInt(json.get(Keys.TEAM_TWO.get()).toString()));
-        id_match = Integer.parseInt(json.get(Keys.MATCH_ID.get()).toString());
-        id_league = zenit.getMapLeague().get(Integer.parseInt(json.get(Keys.LEAGUE_ID.get()).toString()));
+        team_one = zenit.getMapTeams().get(Integer.parseInt(json.get(TEAM_ONE).toString()));
+        team_two = zenit.getMapTeams().get(Integer.parseInt(json.get(TEAM_TWO).toString()));
+        id_match = Integer.parseInt(json.get(MATCH_ID).toString());
+        id_league = zenit.getMapLeague().get(Integer.parseInt(json.get(LEAGUE_ID).toString()));
 
-        JSONArray jsonArray = json.getJSONArray(Keys.COEFF_ARRAY.get());
+        JSONArray jsonArray = json.getJSONArray(COEFF_ARRAY);
         if (jsonArray.length() == 13) {
             for (int i = 1; i <= jsonArray.length(); i++) {
                 JSONObject jsonObject = (JSONObject) jsonArray.get(i-1);
                 switch (i) {
-                    case 1: coeff_win1 = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 2: coeff_draw = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 3: coeff_win2 = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 4: coeff_1x = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 5: coeff_12 = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 6: coeff_x2 = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 7: fora1 =  jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 8: coeff_fora1 = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 9: fora2 = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 10: coeff_fora2 = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 11: coeff_total_min = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 12: total = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
-                    case 13: coeff_total_max = jsonObject.has(Keys.COEFF_VALUE.get()) ? Double.parseDouble(jsonObject.get(Keys.COEFF_VALUE.get()).toString()) : -99; break;
+                    case 1: coeff_win1 = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 2: coeff_draw = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 3: coeff_win2 = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 4: coeff_1x = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 5: coeff_12 = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 6: coeff_x2 = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 7: fora1 =  jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 8: coeff_fora1 = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 9: fora2 = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 10: coeff_fora2 = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 11: coeff_total_min = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 12: total = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
+                    case 13: coeff_total_max = jsonObject.has(COEFF_VALUE) ? Double.parseDouble(jsonObject.get(COEFF_VALUE).toString()) : -99; break;
                 }
             }
         }

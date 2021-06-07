@@ -2,69 +2,62 @@ package org.example.bookmaker;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
+import javax.annotation.PostConstruct;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
+@Component
 public class DB {
 
     private static final Logger logger = LoggerFactory.getLogger(DB.class);
 
-    private static final String URL = "jdbc:postgresql://localhost:5432/first_db";
-    private static final String USERNAME = "postgres";
-    private static final String PASSWORD = "1";
-    private static final String PATTERN_SAVE_DATE = "dd.MM.yyyy HH:mm:ss";
-    private static final String PATTERN_SAVE_DATE_DB = "dd.mm.yyyy hh24:mi:ss";
-    private static final String SQL_FOR_READY_MATCH = "SELECT count(*) as c FROM (SELECT extract(epoch FROM age(b.oddt, LOCALTIMESTAMP))/60 tim FROM games_zenit b JOIN (SELECT idmt, max(id) idmax FROM games_zenit WHERE idmt NOT IN (SELECT idmt FROM games_zenit WHERE scde=1) group by idmt) t on t.idmax = b.id WHERE b.oddt > LOCALTIMESTAMP) tab WHERE tab.tim between 4 and 8";
+    @Value("${db.url}")
+    private String URL;
+    @Value("${db.username}")
+    private String USERNAME;
+    @Value("${db.password}")
+    private String PASSWORD;
+    @Value("${db.pattern_save_date}")
+    private String PATTERN_SAVE_DATE;
+    @Value("${db.pattern_save_date_db}")
+    private String PATTERN_SAVE_DATE_DB;
+    @Value("${db.sql_get_ready_match}")
+    private String SQL_GET_READY_MATCH;
+    @Value("${db.sql_get_game_zenit_in_db}")
+    private String SQL_GET_GAME_ZENIT_IN_DB;
+    @Value("${db.sql_insert_into_zenit}")
+    private String SQL_INSERT_INTO_ZENIT;
+    @Value("${db.driver-class-name}")
+    private String DRIVER_CLASS_NAME;
 
-    private static Connection connection;
-    private static DB instance;
+    private Connection connection;
 
-    private DB() {
+    public DB() {
+    }
+
+    @PostConstruct
+    private void postConstruct() {
         try {
-            Class.forName("org.postgresql.Driver");
+            Class.forName(DRIVER_CLASS_NAME);
             connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
     }
 
-    public static DB getInstance() {
-        if (instance == null)
-            instance = new DB();
-        return instance;
-    }
-
     public void saveZenit(Zenit zenit) {
         saveGameZenit(zenit.getGameZenitList());
-    }
-
-    public int getReadyMatch() {
-        int result = 0;
-        try (Statement stmt = connection.createStatement();
-             ResultSet resultSet = stmt.executeQuery(SQL_FOR_READY_MATCH)) {
-            while (resultSet.next()) {
-                result = resultSet.getInt("c");
-            }
-        } catch (SQLException e) {
-            logger.error(e.getMessage(), e);
-        }
-        logger.info("Количество приближающихся матчей: {}", result);
-        return result;
     }
 
     public ArrayList<GameZenit> getGameZenitInDB() {
         ArrayList<GameZenit> gameZenitInDB = new ArrayList<>();
         try (Statement stmt = connection.createStatement();
-             ResultSet resultSet = stmt.executeQuery("SELECT b.* FROM games_zenit b join (SELECT idmt, max(id) idmax FROM games_zenit WHERE idmt NOT IN (SELECT idmt FROM games_zenit WHERE scde=1) group by idmt) t on t.idmax = b.id")) {
+             ResultSet resultSet = stmt.executeQuery(SQL_GET_GAME_ZENIT_IN_DB)) {
             while (resultSet.next()) {
                 LocalDateTime oddt = resultSet.getTimestamp("oddt").toLocalDateTime();
                 int idmt = resultSet.getInt("idmt");
@@ -100,26 +93,11 @@ public class DB {
         return gameZenitInDB;
     }
 
-    private void saveGameZenit(ArrayList<GameZenit> gameZenit) {
-        ArrayList<GameZenit> gameZenitInDB = getGameZenitInDB();
-        ArrayList<GameZenit> resultArr = new ArrayList<>();
-
-        for (GameZenit game: gameZenit) {
-            boolean in = false;
-            for (GameZenit gameInDB: gameZenitInDB) {
-                in = gameInDB.equals(game);
-                if (in)
-                    break;
-            }
-            if (!in)
-            resultArr.add(game);
-        }
-
-        if (resultArr.size() > 0) {
-            logger.info("Добавится новых строк: {}", resultArr.size());
-            try (PreparedStatement pstmt = connection.prepareStatement("INSERT INTO games_zenit VALUES (DEFAULT, localtimestamp, to_timestamp(?, ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
-                for (GameZenit game: resultArr) {
-                    logger.info("Добавлена строка в БД: {}", game);
+    private void saveGameZenit(List<GameZenit> gameZenit) {
+        if (gameZenit.size() > 0) {
+            logger.info("Добавится новых строк: {}", gameZenit.size());
+            try (PreparedStatement pstmt = connection.prepareStatement(SQL_INSERT_INTO_ZENIT)) {
+                for (GameZenit game: gameZenit) {
                     pstmt.setString(1, game.getDateTimeMatch().format(DateTimeFormatter.ofPattern(PATTERN_SAVE_DATE)));
                     pstmt.setString(2, PATTERN_SAVE_DATE_DB);
                     pstmt.setInt(3, game.getId_match());
@@ -146,11 +124,21 @@ public class DB {
                     pstmt.setInt(24, game.getTtwo2());
                     pstmt.setString(25, game.getCanc());
 
+//                    logger.info("Добавлена строка в БД: {}", game);
+                    logger.info("SQL: {}", pstmt);
+
                     pstmt.executeUpdate();
                 }
             } catch (SQLException e) {
                 logger.error(e.getMessage(), e);
             }
+            try (PreparedStatement pstmt = connection.prepareStatement("delete from game_zenit where id=0")) {
+                logger.info("Delete row");
+                pstmt.executeUpdate();
+            } catch (SQLException e) {
+                logger.error(e.getMessage(), e);
+            }
+            Parser.setZenit_run(false);
         }
     }
 }

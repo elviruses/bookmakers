@@ -5,50 +5,71 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+@Component
+@Scope("prototype")
 public class Zenit extends Thread {
     private static final Logger logger = LoggerFactory.getLogger(Zenit.class);
 
     private JSONObject json;
     private int reload;
-    private int countMatch;
+    @Autowired
+    private DB db;
 
-    private static final String URL_JSON = "https://zenit.win/ajax/line/printer/react?all=0&onlyview=0&timeline=0&sport=1&league=&games=&ross=0&popular_group=&offset=%d&length=%d&timezone=3&lang_id=1&sort_mode=2&b_id=&popular=0&client_v=";
-    private static final int STEP = 400;
-    private static final int TIMEOUT = 15000;
+    @Value("${zenit.url_json}")
+    private String URL_JSON;
+    @Value("${zenit.step}")
+    private int STEP;
+    @Value("${zenit.timeout}")
+    public int TIMEOUT;
+    @Value("${zenit.array_css}")
+    public String[] CSS;
+    @Value("${zenit.home_url}")
+    public String HOME_URL;
+    @Value("${zenit.dict}")
+    private String DICT;
+    @Value("${zenit.dict_team}")
+    private String DICT_TEAM;
+    @Value("${zenit.games}")
+    private String GAMES;
+    @Value("${zenit.dict_league}")
+    private String DICT_LEAGUE;
 
-    private Map<Integer, String> league = new HashMap<>();
-    private Map<Integer, String> teams = new HashMap<>();
+
+    private final Map<Integer, String> league = new HashMap<>();
+    private final Map<Integer, String> teams = new HashMap<>();
     private Map<String, Result> result = new HashMap<>();
-    private ArrayList<GameZenit> gameZenitList = new ArrayList<>();
+    private final List<GameZenit> gameZenitList = new ArrayList<>();
 
     public JSONObject getJson(String url) throws IOException {
         return new JSONObject(Jsoup.connect(url).ignoreContentType(true).execute().body());
     }
 
     private int getCountMatch() throws IOException {
-        Document page = Jsoup.parse(new URL(Keys.HOME_URL.get()), TIMEOUT);
-        return Integer.parseInt(page.select("div[class=favourites-sport-item__inner]").select("div[data-tip=Футбол]").select("div[class=favourites-sport-item-count]").text());
+        Document page = Jsoup.parse(new URL(HOME_URL), TIMEOUT);
+        return Integer.parseInt(page.select(CSS[0]).select(CSS[1]).select(CSS[2]).text());
     }
 
     @Override
     public void run() {
         try {
-            countMatch = getCountMatch();
+            int countMatch = getCountMatch();
             loadResult();
-            for (int i=0; i <= countMatch; i = i + STEP) {
+            for (int i = 0; i <= countMatch; i = i + STEP) {
                 int length = Math.min((countMatch - i), STEP);
                 String url = String.format(URL_JSON, i, length);
-                logger.info("Вызываемый URL: {} ", url);
+                logger.info("Вызываемый URL: {}", url);
                 do {
                     try {
                         json = getJson(url);
@@ -65,36 +86,40 @@ public class Zenit extends Thread {
             loadGameAndResult();
             save();
         } catch (Exception e) {
+            Parser.setZenit_run(false);
+            Parser.showMessage("Ошибка: " + e.getMessage());
             logger.error(e.getMessage(), e);
+            e.printStackTrace();
         }
     }
 
     private void loadMapTeams() {
-        for (String key: json.getJSONObject(Keys.DICT.get()).getJSONObject(Keys.DICT_TEAM.get()).keySet()) {
-            teams.put(Integer.parseInt(key), json.getJSONObject(Keys.DICT.get()).getJSONObject(Keys.DICT_TEAM.get()).get(key).toString());
+        for (String key: json.getJSONObject(DICT).getJSONObject(DICT_TEAM).keySet()) {
+            teams.put(Integer.parseInt(key), json.getJSONObject(DICT).getJSONObject(DICT_TEAM).get(key).toString());
         }
     }
 
     private void loadMapLeague() {
-        for (String key: json.getJSONObject(Keys.DICT.get()).getJSONObject(Keys.DICT_LEAGUE.get()).keySet()) {
-            league.put(Integer.parseInt(key), json.getJSONObject(Keys.DICT.get()).getJSONObject(Keys.DICT_LEAGUE.get()).get(key).toString());
+        for (String key: json.getJSONObject(DICT).getJSONObject(DICT_LEAGUE).keySet()) {
+            league.put(Integer.parseInt(key), json.getJSONObject(DICT).getJSONObject(DICT_LEAGUE).get(key).toString());
         }
     }
 
     private void loadResult() {
-        Result res = new Result();
+        Result res = Parser.context.getBean("result", Result.class);
         res.loadResult();
         result = new HashMap<>(res.getMapResult());
     }
 
     private void loadGame() {
-        for (String key: json.getJSONObject(Keys.GAMES.get()).keySet()) {
-            gameZenitList.add(new GameZenit(json.getJSONObject(Keys.GAMES.get()).getJSONObject(key), this));
+        for (String key: json.getJSONObject(GAMES).keySet()) {
+            GameZenit game = Parser.context.getBean("gameZenit", GameZenit.class);
+            gameZenitList.add(game.getObject(json.getJSONObject(GAMES).getJSONObject(key), this));
         }
     }
 
     private void loadGameAndResult() {
-        ArrayList<GameZenit> gameZenitInDB = new ArrayList<>(DB.getInstance().getGameZenitInDB());
+        ArrayList<GameZenit> gameZenitInDB = new ArrayList<>(db.getGameZenitInDB());
 
         for (GameZenit game: gameZenitInDB) {
             String keyInMapResult = game.getDateTimeMatch() + game.getTeam_one() + game.getTeam_two();
@@ -119,13 +144,11 @@ public class Zenit extends Thread {
         return league;
     }
 
-    public ArrayList<GameZenit> getGameZenitList() {
+    public List<GameZenit> getGameZenitList() {
         return gameZenitList;
     }
 
     private void save() {
-        DB.getInstance().saveZenit(this);
+        db.saveZenit(this);
     }
-
-
 }
