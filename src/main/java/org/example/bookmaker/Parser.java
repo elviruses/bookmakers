@@ -12,6 +12,7 @@ import java.awt.event.ActionListener;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Paths;
+import java.sql.SQLOutput;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +31,11 @@ public class Parser {
     public static TrayIcon trayIcon;
     public static PopupMenu trayMenu;
     public static SystemTray tray;
+
+    private void testMethod() {
+        String str = "Привет";
+
+    }
 
 
     public static void main(String[] args) throws Exception {
@@ -61,8 +67,14 @@ public class Parser {
                 zenit.start();
                 setZenit_run(true);
                 logger.info("Запущен 1-минутный run");
+                System.out.println("Привет");
+                System.out.println("Привет");
+                System.out.println("Привет");
+                System.out.println("Привет");
                 try {
                     Thread.sleep(1000 * 60);
+                    return;
+
                 } catch (InterruptedException e) {
                     logger.error(e.getMessage());
                     logger.error(e.toString());
@@ -78,6 +90,7 @@ public class Parser {
         frame.setMinimumSize(new Dimension(300, 200));
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.pack();
+        System.out.println("Привет");
         setTrayIcon();
     }
 
@@ -119,6 +132,7 @@ public class Parser {
 
     public static void setZenit_run(boolean zenit_run) {
         Parser.zenit_run = zenit_run;
+        System.out.println("Привет");
         if (zenit_run) {
             setImage(ICON_RUN);
         } else {
